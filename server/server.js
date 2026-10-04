@@ -1,0 +1,10 @@
+import 'dotenv/config'; import express from 'express'; import cors from 'cors'; import helmet from 'helmet'; import rateLimit from 'express-rate-limit'; import mongoose from 'mongoose';
+import upload from './routes/upload.js'; import path from 'path'; import auth from './routes/auth.js'; import shop from './routes/shop.js'; import admin from './routes/admin.js';
+const app = express(); app.set('trust proxy', 1);
+app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }), cors({ origin: process.env.CLIENT_URL || '*' }), express.json({ limit: '1mb' }), rateLimit({ windowMs: 15 * 60e3, limit: 500 }));
+app.get('/health', (_q, r) => r.json({ ok: true }));
+app.use('/api/auth', rateLimit({ windowMs: 15 * 60e3, limit: 30 }), auth); app.use('/uploads', express.static(path.resolve('uploads')));
+app.use('/api/admin/upload', upload); app.use('/api/admin', admin); app.use('/api', shop);
+app.use((e, _q, res, _n) => res.status(['ZodError', 'MulterError'].includes(e.name) ? 400 : 500).json({ message: e.name === 'ZodError' ? e.issues[0].message : e.message }));
+await mongoose.connect(process.env.MONGO_URI);
+app.listen(process.env.PORT || 5000, () => console.log('API up'));
